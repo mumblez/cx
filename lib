@@ -1,0 +1,45 @@
+cx_get_config() {
+    local RP DIR PROG
+    RP=$(realpath "$(command -v "$0")")
+    DIR=$(cd "$(dirname "$RP")" && pwd)
+    echo "${DIR}/${CX_CONFIG_LINK}"
+}
+
+cx_source_config() {
+    source "$(cx_get_config)"
+}
+
+cx_validate_tools() {
+    TOOLS=("$@")
+    for t in "${TOOLS[@]}"; do
+        command -V "$t" 1>/dev/null
+    done
+}
+
+cx_msg_error() {
+    echo "==> $*" 1>&2
+    exit 1
+}
+
+# return PATH excluding $CX_BIN_DIR incase we shadow commands
+#!/usr/bin/env bash
+
+cx_path_exclude() {
+    local TMPPATH="$(echo -e "${PATH//:/\\n}" | grep -v "$CX_BIN_DIR" | tr '\n' ':')"
+    export PATH="$TMPPATH"
+}
+
+cx_bin_wrap() {
+    local CMD
+    CMD=("$@")
+    cx_path_exclude
+    if read -r -t 0; then
+        cat - | "${CMD[@]}"
+    else
+        "${CMD[@]}"
+    fi
+}
+
+# add common functions here!
+
+

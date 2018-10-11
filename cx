@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+die() {
+    echo -e "$*" 1>&2
+    exit 1
+}
+
+USAGE="
+USAGE: 
+    cx <program> <config> | [clear] - switch your programs config
+
+SUBCOMMANDS
+
+    Managing your shims - programs in your shims directory
+    ------------------------------------------------------
+
+    setup|enable|disable [program]  - sets up and enables all your programs (in your shims directory) 
+    enable [program]                - enable all or a single program only
+    disable [program]               - disable all or a single program only
+    list [enabled|disabled]         - lists your programs
+    get <program>                   - show the current config for your program
+
+"
+
+[ "$#" = 0 ] && { echo "$USAGE"; exit 0; }
+
+[[ -z "${CX_SHIMS_DIR:-}" || ! -d "${CX_SHIMS_DIR}" ]] && die "==> Error: CX_SHIMS_DIR not set or found"
+[[ -z "${CX_BIN_DIR:-}" || ! -d "${CX_BIN_DIR}" ]] && die "==> Error: CX_BIN_DIR not set or found"
+CX_BIN_LINK="${CX_BIN_LINK:-run}"
+CX_CONFIG_LINK="${CX_CONFIG_LINK:-config}"
+CX_COMMON_DIR="${CX_COMMON_DIR:-${CX_SHIMS_DIR}/common}"
+if [[ -z "${CX_COMMON_DIR}" || ! -d "${CX_COMMON_DIR}" ]]; then
+    mkdir -p "${CX_COMMON_DIR}" || die "==> Error: Failed to create common directory - ${CX_COMMON_DIR}"
+fi
+
+bin_link() {
+    local REAL_PATH LINK_PATH PROG ACTION
+    PROG="$1"
+    ACTION="${2}"
+    REAL_PATH="${CX_SHIMS_DIR}/${PROG}/${CX_BIN_LINK}"
+    LINK_PATH="${CX_BIN_DIR}/${PROG}"
+    if [ -e "$REAL_PATH" ]; then
+        # delete symlink regardless of action
+        if [ -h "$LINK_PATH" ]; then 
+            rm -f "$LINK_PATH"
+        fi
+        if [ "${ACTION}" = "create" ]; then
+            ln -snf "$REAL_PATH" "$LINK_PATH"
+        fi
+    else
+        echo "==> Error: program $PROG not found"
+    fi
+}
+
+setup_all() {
+    local REAL_PATH LINK_PATH ACTION
+    ACTION="${1:-}"
+    # shellcheck disable=SC2010
+    if [ "$ACTION" = "create" ]; then
+        echo "==> enabling all programs"
+    else
+        echo "==> disabling all programs"
+    fi
+
+    # shellcheck disable=SC2044,SC2086
+    #for PROG in $(find ${CX_SHIMS_DIR}/* -maxdepth 1 -type d -exec basename {} \;); do
+    for PROG in $(get_shims); do
+        bin_link "$PROG" "${ACTION}"
+    done
+}
+
+get_current_config() {
+    local PROG LINK CONFIG REAL_FILE
+    PROG="$1"
+    LINK="${CX_SHIMS_DIR}/${PROG}/config"
+    if [ -e "$LINK" ]; then
+        REAL_FILE="$(readlink "$LINK")"
+        basename "$REAL_FILE"
+    else
+        echo "none"
+    fi
+}
+
+get_shims() {
+    local DIRS LINKS DIFF
+    # All
+    DIRS=("$(find "$CX_SHIMS_DIR"/* -maxdepth 1 -type d -exec basename {} \; | grep -v "$(basename "$CX_COMMON_DIR")" | sort)")
+    # Enabled
+    LINKS=("$(find "$CX_BIN_DIR"/* -maxdepth 1 -type l -exec basename {} \; | sort)")
+    # Disabled = All - Enabled
+    DIFF=("$(comm <(echo "${LINKS[@]}") <(echo "${DIRS[@]}") -3 | tr -d '[:blank:]')")
+
+    case "${1:-}" in
+        enabled) echo "${LINKS[@]}" ;;
+        disabled) echo "${DIFF[@]}" ;;
+        *) echo "${DIRS[@]}" ;;
+    esac
+
+}
+
+get_configs() {
+    local PROG CONFIGS
+    PROG="$1"
+    CONFIGS=("$(find "$CX_SHIMS_DIR/${PROG}" -maxdepth 1 -type f -exec basename {} \; | grep -vE "($CX_BIN_LINK|$CX_COMMON_DIR)")")
+    echo "${CONFIGS[@]}"
+}
+
+post_cx() {
+    [ ! -z "$TMUX" ] && tmux refresh-client
+}
+
+PROG="$1"
+CONFIG="${2:-}"
+
+case "${1:-}" in
+    setup) 
+        if [ ! -z "${2:-}" ]; then
+            bin_link "$2" create; exit 0
+        else
+            setup_all create; exit 0
+        fi
+        ;;
+    enable) 
+        if [ ! -z "${2:-}" ]; then
+            bin_link "$2" create; exit 0
+        else
+            setup_all create; exit 0
+        fi
+        ;;
+    disable) 
+        if [ ! -z "${2:-}" ]; then
+            bin_link "$2" delete; exit 0
+        else
+            setup_all delete; exit 0
+        fi
+        ;;
+    get) get_current_config "$2"; exit 0; ;;
+    list) 
+        if [[ "${2:-}" == "enabled" || "${2:-}" == "disabled" || "${2:-}" == "" ]]; then
+            get_shims "${2:-}"; exit 0
+        else
+            get_configs "$2"; exit 0
+        fi
+        ;;
+    -h|--help) echo "$USAGE"; exit 0; ;;
+esac
+
+[ -z "$CONFIG" ] && die "==> Error: please provide a context to switch to"
+
+[ ! -e "${CX_SHIMS_DIR}/${PROG}/run" ] && die "==> Error: program $PROG does not exist"
+cd "${CX_SHIMS_DIR}/$PROG"
+
+# case "$CONFIG" in
+#     clear) rm -f config; exit 0; ;;
+#     # disable) echo "todo"; exit 0; ;;
+#     # enable) echo "todo"; exit 0; ;;
+# esac
+
+if [ "$CONFIG" = "clear" ]; then
+    rm -f config
+    exit 0
+fi
+
+[ ! -e "$CONFIG" ] && die "==> Error: config $CONFIG does not exist"
+[ -e config ] && rm -f config
+ln -snf "$CONFIG" config
+echo "==> Config context for $PROG is set to: $CONFIG"
+post_cx
