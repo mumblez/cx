@@ -22,7 +22,6 @@ export HOMEBREW_GITHUB_API_TOKEN="$(gopass homebrew-git-pat)"
 ## How to create a program shim:
 
 1. Within cx base directory, make a directory after your named program, e.g.
-
 `mkdir mysql` and cd into it
 the directory name will be used as your program name and will be accessible within your `PATH`
 we will shadow the program if it already exists in your path, to shadow you must ensure
@@ -63,12 +62,12 @@ cx mysql staging
 You're file layout may look like so:
 
 ```text
-    -myShims/
-     |-mysql/
-        |-staging
-        |-production
-        |-run               # script to invoke
-        |-config->staging   # config sourced in
+-myShims/
+ |-mysql/
+    |-staging
+    |-production
+    |-run               # script to invoke
+    |-config->staging   # config sourced in
 ```
 
 the config symlink gets created when you `cx mysql staging`, this is what you `source` in
@@ -83,6 +82,9 @@ your `run` script, but use the `cx_get_config` function so it can return the rea
     - CX_BIN_LINK
     - CX_CONFIG_LINK
 - bash auto complete
+- common functions in lib
+- asciinema demo
+- tmux status line
 
 
 ## How to clear your programs config
@@ -108,17 +110,17 @@ mkdir psql
 cd into your shim directory and create a config named anything other than `config`
 
 ```text
-    $ vim staging
-    PGPASSWORD=myPass       # or $(gopass postgres/staging/db-1)
-    PGUSER=myUser           # or $(gopass postgres/staging/db-1 user) 
-    PGHOST=1.2.3.4:5432     # or $(gopass postgres/staging/db-1 host)
+$ vim staging
+PGPASSWORD=myPass       # or $(gopass postgres/staging/db-1)
+PGUSER=myUser           # or $(gopass postgres/staging/db-1 user) 
+PGHOST=1.2.3.4:5432     # or $(gopass postgres/staging/db-1 host)
 ```
 
 create your `run` script (and make executable), or symlink to a real script
 
 vim run
 ```sh
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
