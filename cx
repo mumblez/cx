@@ -153,11 +153,6 @@ esac
 [ ! -e "${CX_SHIMS_DIR}/${PROG}/run" ] && die "==> Error: program $PROG does not exist"
 cd "${CX_SHIMS_DIR}/$PROG"
 
-# case "$CONFIG" in
-#     clear) rm -f config; exit 0; ;;
-#     # disable) echo "todo"; exit 0; ;;
-#     # enable) echo "todo"; exit 0; ;;
-# esac
 
 if [ "$CONFIG" = "clear" ]; then
     rm -f config
