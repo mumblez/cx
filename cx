@@ -23,7 +23,7 @@ msg_info() {
     exit 1
 }
 
-USAGE="
+read -r -d'\0' USAGE <<'EOF'
 USAGE: 
     cx <program> <config> | [clear] - switch your programs config
 
@@ -31,14 +31,44 @@ SUBCOMMANDS
 
     Managing your shims - programs in your shims directory
     ------------------------------------------------------
-
-    setup|enable|disable [program]  - sets up and enables all your programs (in your shims directory) 
+    enable|disable                  - sets up and enables all your programs (in your shims directory) 
     enable [program]                - enable all or a single program only
     disable [program]               - disable all or a single program only
     list [enabled|disabled]         - lists your programs
     get <program>                   - show the current config for your program
 
-"
+
+    Manage cx configuration
+    -----------------------
+    setup                           - setup initial config and directories
+    config                          - show your config settings
+    config edit                     - edit your config settings (opens with $EDITOR / $VISUAL)
+    config validate                 - edit your config settings (opens with $EDITOR / $VISUAL)
+
+    --help for more information
+
+\0
+EOF
+
+read -r -d'\0' MOREINFO <<'EOF'
+EXPORTS
+
+    .bashrc / .bash_profile
+    -----------------------
+    . <(cx --config)                - sources your $HOME/.config/cx/cxrc (important exports!)
+    . <(cx --autocomplete)          - sets up bash autocomplete, put this in your bashrc / bash_profile
+
+    program (aka shim script)
+    -------------------------
+    . <(cx --functions)             - brings in common cx functions for your shim scripts, you'll need
+                                      this for cx_bin_wrap <program> [<args>]
+
+                                      cx_source_config  - sources the current config
+                                      cx_bin_wrap       - runs the real command with your config
+
+
+\0
+EOF
 
 [ "$#" = 0 ] && { echo "$USAGE"; exit 0; }
 
@@ -186,7 +216,7 @@ bin_link() {
     fi
 }
 
-setup_all() {
+all_shims() {
     local REAL_PATH LINK_PATH ACTION
     ACTION="${1:-}"
     # shellcheck disable=SC2010
@@ -268,28 +298,77 @@ switch_config() {
     post_cx
 }
 
+# setup
+setup() {
+    # TODO: process args for scriptable installation
+    # local ARGS
+    # ARGS=("$@")
+    # if [ "${#ARGS}" -gt 1 ]; then
+    #     echo "${ARGS[@]:1}"
+    # fi
+    # exit 0
+
+    # if first arg is validate, just run checks
+
+
+
+    # ask to copy script to /usr/local/bin/ and possibly overwrite, assuming we 
+    # trigger this from a fresh repo clone!
+    # if user answers yes, 
+    # cp $0 /usr/local/bin/ || msg_error ...
+    # chmod +x /usr/local/bin/cx || msg_error ...
+
+
+    local CONFIG_DIR BIN_DIR SOURCE_CONFIG_ENABLE SOURCE_AUTOCOMPLETE_ENABLE
+    CONFIG_DIR="${HOME}/.config/cx"
+    BIN_DIR="${CONFIG_DIR}/bin"
+    if [ ! -d "${CONFIG_DIR}" ]; then
+        mkdir -p "${CONFIG_DIR}" || msg_error "Failed to setup cx config dir - $CONFIG_DIR"
+    fi
+    if [ ! -d "${BIN_DIR}" ]; then
+        mkdir -p "${BIN_DIR}" || msg_error "Failed to setup cx config dir - $BIN_DIR"
+    fi
+
+    # ask the user if they want us to append source config and auto complete to their 
+    # bashrc / profile
+
+    # setup initial exports file
+    read -r -d'\0' <<EOF
+# TODO: add all env vars here!!!
+
+EOF
+
+    # ask and append if SOURCE_CONFIG_ENABLE=1
+
+    # ask and append if SOURCE_AUTOCOMPLETE_ENABLE=1
+
+
+}
+
+# end of setup
+
 # MAIN
 
 case "${1:-}" in
     setup) 
-        if [ ! -z "${2:-}" ]; then
-            bin_link "$2" create; exit 0
-        else
-            setup_all create; exit 0
-        fi
+        setup "$@"
+        ;;
+    validate)
+        echo "TODO"
+        exit 0
         ;;
     enable) 
         if [ ! -z "${2:-}" ]; then
             bin_link "$2" create; exit 0
         else
-            setup_all create; exit 0
+            all_shims create; exit 0
         fi
         ;;
     disable) 
         if [ ! -z "${2:-}" ]; then
             bin_link "$2" delete; exit 0
         else
-            setup_all delete; exit 0
+            all_shims delete; exit 0
         fi
         ;;
     get) get_current_config "$2"; exit 0; ;;
@@ -300,10 +379,15 @@ case "${1:-}" in
             get_configs "$2"; exit 0
         fi
         ;;
-    -h|--help) echo "$USAGE"; exit 0; ;;
-esac
-
-case "${1:-}" in
+    -h) 
+        echo "$USAGE"
+        exit 0
+        ;;
+    --help)
+        echo "$USAGE"; echo
+        echo "$MOREINFO"
+        exit 0
+        ;;
     --autocomplete)
         setup_autocomplete
         ;;
