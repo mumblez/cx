@@ -95,7 +95,7 @@ get_shims() {
 
     case "${1:-}" in
         enabled) echo "${LINKS[@]}" ;;
-        disabled) echo "${DIFF[@]}" ;;
+        disabled) echo "${DIFF[@]}" | grep -vE '^$' ;;
         *) echo "${DIRS[@]}" ;;
     esac
 
