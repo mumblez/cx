@@ -2,8 +2,24 @@
 
 set -euo pipefail
 
-die() {
-    echo -e "$*" 1>&2
+## colours for easy reference
+RED="\\033[1;31m"
+# BLUE="\\033[1;34m"
+YELLOW="\\033[1;33m"
+GREY="\\033[1;37m"
+NC="\\033[0m"
+
+# message functions
+msg_error() {
+    echo -e "${RED}==> Error: $*${NC}" 1>&2
+    exit 1
+}
+msg_warn() {
+    echo -e "${YELLOW}==> Warning: $*${NC}" 1>&2
+    exit 1
+}
+msg_info() {
+    echo -e "${GREY}==> $*${NC}" 1>&2
     exit 1
 }
 
@@ -26,14 +42,81 @@ SUBCOMMANDS
 
 [ "$#" = 0 ] && { echo "$USAGE"; exit 0; }
 
-[[ -z "${CX_SHIMS_DIR:-}" || ! -d "${CX_SHIMS_DIR}" ]] && die "==> Error: CX_SHIMS_DIR not set or found"
-[[ -z "${CX_BIN_DIR:-}" || ! -d "${CX_BIN_DIR}" ]] && die "==> Error: CX_BIN_DIR not set or found"
+# Ensure environment variables are set and common dir created
+[[ -z "${CX_SHIMS_DIR:-}" || ! -d "${CX_SHIMS_DIR}" ]] && msg_error "CX_SHIMS_DIR ${GREY}($CX_SHIMS_DIR)${NC} not set or found"
+[[ -z "${CX_BIN_DIR:-}" || ! -d "${CX_BIN_DIR}" ]] && msg_error "CX_BIN_DIR ${GREY}($CX_BIN_DIR)${NC} not set or found"
+[[ -z "${CX_COMMON_DIR:-}" || ! -d "${CX_COMMON_DIR}" ]] && msg_warn "CX_COMMON_DIR ${GREY}($CX_COMMON_DIR)${NC} not set or found, defaulting to ${GREY}'${CX_SHIMS_DIR}/common'${NC}"
+[[ -z "${CX_BIN_LINK:-}" ]] && msg_warn "CX_BIN_LINK ${GREY}($CX_BIN_LINK)${NC} not set or found, defaulting of ${GREY}'run'${NC}"
+[[ -z "${CX_CONFIG_LINK:-}" ]] && msg_warn "CX_CONFIG_LINK ${GREY}($CX_CONFIG_LINK)${NC} not set or found, defaulting to ${GREY}'config'${NC}"
 CX_BIN_LINK="${CX_BIN_LINK:-run}"
 CX_CONFIG_LINK="${CX_CONFIG_LINK:-config}"
 CX_COMMON_DIR="${CX_COMMON_DIR:-${CX_SHIMS_DIR}/common}"
 if [[ -z "${CX_COMMON_DIR}" || ! -d "${CX_COMMON_DIR}" ]]; then
-    mkdir -p "${CX_COMMON_DIR}" || die "==> Error: Failed to create common directory - ${CX_COMMON_DIR}"
+    mkdir -p "${CX_COMMON_DIR}" || msg_error "Failed to create default common directory - ${GREY}${CX_COMMON_DIR}${NC}"
 fi
+
+## cx functions - to be exported for user scripts
+cx_get_config() {
+    local RP DIR PROG
+    RP=$(realpath "$(command -v "$0")")
+    DIR=$(cd "$(dirname "$RP")" && pwd)
+    echo "${DIR}/${CX_CONFIG_LINK}"
+}
+
+cx_source_config() {
+    # shellcheck disable=SC1090
+    source "$(cx_get_config)"
+}
+
+cx_validate_tools() {
+    local TOOLS
+    TOOLS=("$@")
+    for t in "${TOOLS[@]}"; do
+        command -V "$t" 1>/dev/null
+    done
+}
+
+cx_msg_error() {
+    echo "==> $*" 1>&2
+    exit 1
+}
+
+cx_path_exclude() {
+    local  TMPPATH
+    TMPPATH="$(echo -e "${PATH//:/\\n}" | grep -v "$CX_BIN_DIR" | tr '\n' ':')"
+    export PATH="$TMPPATH"
+}
+
+cx_bin_wrap() {
+    local CMD
+    CMD=("$@")
+    cx_path_exclude
+    if read -r -t 0; then
+        cat - | "${CMD[@]}"
+    else
+        "${CMD[@]}"
+    fi
+}
+
+# export all cx_* functions
+
+export_functions() {
+    local CX_FUNCTIONS
+    CX_FUNCTIONS="\
+        cx_bin_wrap\
+        cx_path_exclude\
+        cx_msg_error\
+        cx_validate_tools\
+        cx_source_config\
+        cx_get_config"
+
+    for f in $CX_FUNCTIONS; do
+        declare -f "$f"
+    done
+    exit 0
+}
+
+## end of cx functions
 
 
 ## autocomplete setup (bash)
@@ -44,7 +127,7 @@ _cx_completion()
     local CX_BASE_CMDS CX_IGNORE_DIRS CX_IGNORE_FILES CX_IGNORE
     CX_SHIMS_DIR=${CX_SHIMS_DIR:-"${HOME}/shims"}
     CX_BIN_DIR=${CX_BIN_DIR:-"${HOME}/shims_bin"}
-    CX_BASE_CMDS=("setup get enable disable list --autocomplete")
+    CX_BASE_CMDS=("setup get enable disable list")
     CX_LIST_OPTIONS=("enabled disabled")
     CX_BIN_LINK="${CX_BIN_LINK:-run}"
     CX_CONFIG_LINK="${CX_CONFIG_LINK:-config}"
@@ -77,13 +160,9 @@ _cx_completion()
 
 # to be sourced in - . $(cx --autocomplete)
 setup_autocomplete() {
-    local OUTPUT
-    read -r -d '' OUTPUT <<EOF
-$(declare -f _cx_completion)
-complete -F _cx_completion cx
-EOF
-
-    echo "$OUTPUT"
+    declare -f _cx_completion
+    echo 'complete -F _cx_completion cx'
+    exit 0
 }
 
 ## end of autocomplete setup
@@ -103,7 +182,7 @@ bin_link() {
             ln -snf "$REAL_PATH" "$LINK_PATH"
         fi
     else
-        echo "==> Error: program $PROG not found"
+        msg_error "program $PROG not found"
     fi
 }
 
@@ -112,9 +191,9 @@ setup_all() {
     ACTION="${1:-}"
     # shellcheck disable=SC2010
     if [ "$ACTION" = "create" ]; then
-        echo "==> enabling all programs"
+        msg_info "enabling all programs"
     else
-        echo "==> disabling all programs"
+        msg_warn "disabling all programs"
     fi
 
     # shellcheck disable=SC2044,SC2086
@@ -127,7 +206,7 @@ setup_all() {
 get_current_config() {
     local PROG LINK CONFIG REAL_FILE
     PROG="$1"
-    LINK="${CX_SHIMS_DIR}/${PROG}/config"
+    LINK="${CX_SHIMS_DIR}/${PROG}/${CX_CONFIG_LINK}"
     if [ -e "$LINK" ]; then
         REAL_FILE="$(readlink "$LINK")"
         basename "$REAL_FILE"
@@ -151,7 +230,6 @@ get_shims() {
         disabled) echo "${DIFF[@]}" | grep -vE '^$' ;;
         *) echo "${DIRS[@]}" ;;
     esac
-
 }
 
 get_configs() {
@@ -165,8 +243,32 @@ post_cx() {
     [ ! -z "$TMUX" ] && tmux refresh-client
 }
 
-PROG="$1"
-CONFIG="${2:-}"
+switch_config() {
+    local PROG CONFIG
+    PROG="${1:-}"
+    CONFIG="${2:-}"
+
+    [ ! -e "${CX_SHIMS_DIR}/${PROG}/${CX_BIN_LINK}" ] && msg_error "program $PROG does not exist - ${GREY}try one of: [ $(get_shims | tr '\n' ' ')]"
+    [ -z "$CONFIG" ] && msg_error "please provide a config to switch to - ${GREY}try one of: [ $(get_configs "$PROG" | tr '\n' ' ')]"
+
+    cd "${CX_SHIMS_DIR}/$PROG"
+
+    if [ "$CONFIG" = "clear" ]; then
+        rm -f config
+        msg_warn "config for $PROG cleared"
+        exit 0
+    fi
+
+    [ ! -e "$CONFIG" ] && msg_error "config: $CONFIG does not exist - ${GREY}try one of : [ $(get_configs "$PROG" | tr '\n' ' ')]"
+
+    # delete current config and recreate symlink
+    [ -e config ] && rm -f config
+    ln -snf "$CONFIG" config
+    msg_info "Config for $PROG set to: $CONFIG"
+    post_cx
+}
+
+# MAIN
 
 case "${1:-}" in
     setup) 
@@ -204,22 +306,10 @@ esac
 case "${1:-}" in
     --autocomplete)
         setup_autocomplete
-        exit 0
+        ;;
+    --functions)
+        export_functions
+        ;;
 esac
 
-[ -z "$CONFIG" ] && die "==> Error: please provide a context to switch to"
-
-[ ! -e "${CX_SHIMS_DIR}/${PROG}/run" ] && die "==> Error: program $PROG does not exist"
-cd "${CX_SHIMS_DIR}/$PROG"
-
-
-if [ "$CONFIG" = "clear" ]; then
-    rm -f config
-    exit 0
-fi
-
-[ ! -e "$CONFIG" ] && die "==> Error: config $CONFIG does not exist"
-[ -e config ] && rm -f config
-ln -snf "$CONFIG" config
-echo "==> Config context for $PROG is set to: $CONFIG"
-post_cx
+switch_config "${1:-}" "${2:-}"
