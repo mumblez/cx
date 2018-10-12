@@ -62,12 +62,23 @@ cx mysql staging
 You're file layout may look like so:
 
 ```text
--myShims/
- |-mysql/
-    |-staging
-    |-production
-    |-run               # script to invoke
-    |-config->staging   # config sourced in
+my-shims
+├── common                      <--- common includes (can configure with $CX_COMMON_DIR)
+│   ├── csp
+│   └── trap-handler
+├── mysql
+│   ├── config -> sandbox       <--- current config
+│   ├── production
+│   ├── run                     <--- current script / shim
+│   ├── sandbox
+│   ├── scratch
+│   └── staging
+├── psql
+│   ├── analytics
+│   ├── config -> operations    <--- current config
+│   ├── operations
+│   └── run                     <--- current script / shim
+
 ```
 
 the config symlink gets created when you `cx mysql staging`, this is what you `source` in
