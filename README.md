@@ -9,6 +9,12 @@ The goal is to make exposing sensitive information short lived and confined to j
 of the desired program; because we export variables and run the program in a subshell, upon
 exit those variables will no longer be available in your environment.
 
+The other goal is to make switching configs quick and easy, if your managing many servers, environments,
+or generally using a common tool with different profiles / settings, this can make switching
+quick an easy!
+
+TODO: asciidemo, psql, mysql, rd, tmux status line....
+
 This is further secured / enhanced if you derive your values from a cli password manager
 such as pass or gopass, then you can safely version control your shims!
 
@@ -21,13 +27,12 @@ export HOMEBREW_GITHUB_API_TOKEN="$(gopass homebrew-git-pat)"
 
 ## How to create a program shim:
 
-1. Within cx base directory, make a directory after your named program, e.g.
+1. Within your desired shims directory, make a directory after your named program, e.g.
 `mkdir mysql` and cd into it
-the directory name will be used as your program name and will be accessible within your `PATH`
-we will shadow the program if it already exists in your path, to shadow you must ensure
-`CX_BIN_DIR` is in your path earlier than your other paths (set it at the beginning!)
+the directory name will be used as your program name and will be accessible within your
+`PATH` 
 
-2. create a script named 'run', make executable and put your logic in there, logic shoud include
+2. create a script named 'run', make executable and put your logic in there, logic can include
     - Pulling sensitive info out of [go]pass (if you don't want to put it in your configs clear text)
     - Setting config variables, e.g. host, username, password, project, instance....
     - Export the variables before calling the real program, e.g. 'mysql'
@@ -42,11 +47,10 @@ we will shadow the program if it already exists in your path, to shadow you must
 3. create your various configurations, e.g. for different environments, instances, projects, dbs, etc..
     name then anything you want, except 'config' (that will be the symlink to the desired configuration)
 
-4. run `cx setup`, this will create symlinks for each shim in a directory in your PATH, e.g. 
-`$CX_BIN_DIR` (ensure this directory is in your PATH, ideally at the beginning!)
+4. run `cx enable <your shim name>`, this will create a symlink for your shim and be accessible
+    in your PATH
 
-
-## How to change your program's configuration
+## How to change your shims configuration
 
 ```sh
 cx <program> <config> 
@@ -56,7 +60,9 @@ e.g. if your shim program is named `mysql` and you have a
 configuration named `staging` you'd changed to that config like so:
 
 ```sh
-cx mysql staging
+cx mysql staging # use staging config
+cx mysql clear   # clear config, 
+cx disable mysql # use normal 'mysql' in your PATH (bypassing shim)
 ```
 
 You're file layout may look like so:
@@ -108,6 +114,7 @@ cx <program> clear
 
 ```
 cx mysql clear
+cx disable mysql
 ```
 
 ## Example: creating a shim for postgres psql tool
@@ -136,10 +143,9 @@ vim run
 set -euo pipefail
 
 # Bring in common functions and config
-. "${CX_COMMON_LIB}"
+. <(cx --init)
 . "${CX_COMMON_DIR}/trap-handler"
 . "${CX_COMMON_DIR}/csp"
-. "$(cx_get_config)"
 
 # Validate we have the tools
 cx_validate_tools gopass cloud_sql_proxy psql grep
@@ -159,4 +165,12 @@ csp_start "$CSP_INSTANCE" "$SOCKET_DIR"
 export PGUSER PGHOST PGPASSWORD
 cx_bin_wrap psql -w "$@"
 
+```
+
+to use your shim:
+
+```sh
+cx enable psql
+cx psql staging
+psql # <- calls your shim script, which sets up values and runs 'cx_bin_wrap psql [args...]'
 ```
