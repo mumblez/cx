@@ -58,8 +58,8 @@ SUBCOMMANDS
     -----------------------
     init                            - setup initial config and directories
     config                          - show your config settings
-    config edit                     - edit your config settings (opens with $EDITOR / $VISUAL)
-    config validate                 - edit your config settings (opens with $EDITOR / $VISUAL)
+    config edit                     - edit your config settings (opens with $EDITOR)
+    config validate                 - validate your settings (ensure directories exist)
 
 
     First time cx use? initialise with:
