@@ -38,11 +38,6 @@ _msg_try_one() {
     echo -e "${GREY}try one of: ${BLUE}[ $(echo "${RES[*]}" | tr '\n' ' ')]"
 }
 
-# internal helpers
-_cli2var() {
-    echo "$1" | sed -e 's/--//g' | tr '[:lower:]' '[:upper]'
-}
-
 read -r -d'\0' USAGE <<'EOF'
 USAGE: 
     cx <program> <config> | [clear] - switch your programs config
@@ -272,7 +267,7 @@ validate_settings() {
     fi
 }
 
-get_settings_globally() {
+get_global_settings() {
 	for l in "${ALL_VARS[@]}"; do
         echo "${l}: ${!l}" | sed 's/^CX_//g'
 	done
@@ -291,13 +286,13 @@ get_settings() {
             fi
             ;;
         *)
-            get_settings_globally || msg_error "Failed to get cx settings"
+            get_global_settings || msg_error "Failed to get cx settings"
             ;;
     esac
 }
 
 
-# cx --exports  # so scripts can access CX_* settings
+# cx --[init|functions]  # so scripts can access CX_* settings
 export_settings() {
     local LINE 
     local EXPORTED_SETTINGS=""
@@ -317,7 +312,7 @@ cx_get_config() {
     local RP DIR PROG
     RP=$(realpath "$(command -v "$0")")
     DIR=$(cd "$(dirname "$RP")" && pwd)
-    echo "${DIR}/${CX_CONFIG_LINK}"
+    echo "${DIR}/${CX_CONFIG_LINK}" # Ensure we export settings first!
 }
 
 cx_source_config() {
@@ -337,6 +332,7 @@ cx_msg_error() {
     exit 1
 }
 
+# for when you want to exclude BIN_DIR early on in the script
 cx_path_exclude() {
     local  TMPPATH
     TMPPATH="$(echo -e "${PATH//:/\\n}" | grep -v "$CX_BIN_DIR" | tr '\n' ':')"
@@ -394,6 +390,7 @@ _cx_completion()
     CX_BASE_CMDS=("get enable disable list init config")
 	CX_CONFIG_OPTIONS=("edit validate")
     CX_LIST_OPTIONS=("enabled disabled")
+    CX_GET_OPTIONS=("--bin_dir --shims_dir --bin_link --config_link --common_dir --tmux_refresh")
     CX_BIN_LINK="${CX_BIN_LINK:-run}"
     CX_CONFIG_LINK="${CX_CONFIG_LINK:-config}"
     CX_IGNORE_DIRS="bin|common"
@@ -413,6 +410,7 @@ _cx_completion()
             if [[ "${CX_BASE_CMDS[*]}" =~ $prev ]]; then COMPREPLY=($(compgen -W "$(cx list)" -- ${cur})); fi
 			case "$prev" in
 				list) COMPREPLY=($(compgen -W "${CX_LIST_OPTIONS[*]} $(cx list)" -- ${cur})) ;;
+				get) COMPREPLY=($(compgen -W "${CX_GET_OPTIONS[*]} $(cx list)" -- ${cur})) ;;
 				enable) COMPREPLY=($(compgen -W "$(cx list disabled)" -- ${cur}));;
 				disable) COMPREPLY=($(compgen -W "$(cx list enabled)" -- ${cur}));;
 				config) COMPREPLY=($(compgen -W "${CX_CONFIG_OPTIONS[*]}" -- ${cur}));;
@@ -427,7 +425,7 @@ _cx_completion()
 }
 
 # to be sourced in - . $(cx --autocomplete)
-setup_autocomplete() {
+export_autocomplete() {
     declare -f _cx_completion
     echo 'complete -F _cx_completion cx'
     exit 0
@@ -454,7 +452,7 @@ bin_link() {
     fi
 }
 
-all_shims() {
+toggle_shims() {
     local REAL_PATH LINK_PATH ACTION
     ACTION="${1:-}"
     # shellcheck disable=SC2010
@@ -464,8 +462,6 @@ all_shims() {
         msg_warn "disabling all programs"
     fi
 
-    # shellcheck disable=SC2044,SC2086
-    #for PROG in $(find ${CX_SHIMS_DIR}/* -maxdepth 1 -type d -exec basename {} \;); do
     for PROG in $(get_shims); do
         bin_link "$PROG" "${ACTION}"
     done
@@ -474,9 +470,12 @@ all_shims() {
 
 get_current_config() {
     # if starts -- then get internal config
+    # TODO
     if [[ "$1" =~ "--" ]]; then
-        t="$(_cli2var "$1")" 
+        t="CX_$(echo $1 | sed 's/--//g' | tr '[:lower:]' '[:upper:]')" 
+        set +u
         echo "${!t}"
+        set -u
         return
     fi
 
@@ -571,14 +570,14 @@ case "${1:-}" in
         if [ ! -z "${2:-}" ]; then
             bin_link "$2" create; exit 0
         else
-            all_shims create; exit 0
+            toggle_shims create; exit 0
         fi
         ;;
     disable) 
         if [ ! -z "${2:-}" ]; then
             bin_link "$2" delete; exit 0
         else
-            all_shims delete; exit 0
+            toggle_shims delete; exit 0
         fi
         ;;
     get) get_current_config "${2:-}"; exit 0; ;;
@@ -601,7 +600,7 @@ case "${1:-}" in
         exit 0
         ;;
     --autocomplete)
-        setup_autocomplete
+        export_autocomplete
         ;;
     --functions)
         export_functions
