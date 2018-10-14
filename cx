@@ -5,7 +5,7 @@ set -euo pipefail
 
 ## colours for easy reference
 RED="\\033[1;31m"
-# BLUE="\\033[1;34m"
+BLUE="\\033[1;34m"
 YELLOW="\\033[1;33m"
 GREY="\\033[1;37m"
 NC="\\033[0m"
@@ -26,6 +26,17 @@ msg_warn() {
 msg_info() {
     echo -e "${GREY}==> $*${NC}" 1>&2
 }
+_msg_try_one() {
+    local MTYPE PROG
+    MTYPE="$1"
+    PROG="${2:-}"
+    RES=()
+    case "${MTYPE}" in
+        program) RES+=("$(get_shims)") ;;
+        config) RES+=("$(get_configs "$PROG")") ;;
+    esac
+    echo -e "${GREY}try one of: ${BLUE}[ $(echo "${RES[*]}" | tr '\n' ' ')]"
+}
 
 # internal helpers
 _cli2var() {
@@ -41,8 +52,8 @@ SUBCOMMANDS
     Managing your shims - programs in your shims directory
     ------------------------------------------------------
     enable|disable                  - sets up and enables all your programs (in your shims directory) 
-    enable [program]                - enable all or a single program only
-    disable [program]               - disable all or a single program only
+    enable <program>                - enable single program only
+    disable <program>               - disable single program only
     list [enabled|disabled]         - lists your programs
     get <program>                   - show the current config for your program
 
@@ -105,27 +116,27 @@ initialise_cx_home() {
 # by prefixing the value with CX_, e.g. for SHIMS_DIR = CX_SHIMS_DIR
 
 
-# default directory where 'cx' command is called from (should be in your PATH)
-# we want this outside of any shims / common directory
-CX_BIN_PATH=/usr/local/bin
-
 # contains symlinks to your shims, ensure this exists early on in your PATH
 # check it's the last step in your ~/.bashrc / ~/bash_profile 
 #'export PATH="${CX_BIN_DIR}:${PATH}"'
 BIN_DIR="${HOME}/.config/cx/bin"
 
-# File layout (all configurable)
-# |-my-shims/                   <-- (SHIMS_DIR)
-#      |-common/                <-- (COMMON_DIR)
-#      |-mysql/
-#          |-run                <-- (BIN_LINK) name of script, gets symlinked in BIN_DIR
-#          |-staging
-#          |-config->staging    <-- (CONFIG_LINK) this is what gets sourced in when using 'cx_source_config' in your script
+# Example File layout of your shims directory
+# my-shims/                 <-- (SHIMS_DIR)
+# ├─ common/               	<-- (COMMON_DIR)
+# └─ mysql/					<-- command name, must match a command already in your PATH
+#    ├── run                <-- (BIN_LINK) name of script, gets symlinked in BIN_DIR
+#    ├── staging			<-- a real configuration containing settings to be sourced in your 'run' script
+#    └── config -> staging  <-- (CONFIG_LINK) this is what gets sourced in when using '. $(cx --init)' in your script
+
+# script file within your shims directory to symlink to in BIN_DIR
 BIN_LINK=run
+
+# symlink name to use when set context with 'cx <program> <config>'
 CONFIG_LINK=config
 
-# directory location of your shim scripts and configs, ideally version controlled on a private
-# git repository, like keybase or gitlab
+# your shim  and configs, (ideally version controlled on a private
+# git repository, like keybase or gitlab)
 SHIMS_DIR=/tmp/cx # you should change this or override in your ~/.bashrc
 
 # common directory containing includes you can reuse in your shim scripts, by default
@@ -160,14 +171,14 @@ Created:
     2. enable autocompletion (optional), add to ~/.bashrc:
         command -v cx &>/dev/null . <(cx --autocomplete)
 
-    3. ensure the last step / last PATH manipulation in your ~/.bashrc (so that $BIN_DIR is first)
+    3. the last step / last PATH manipulation in your ~/.bashrc (so that $BIN_DIR is first)
         export PATH="${BIN_DIR}:\${PATH}"
 
-    4. copy the cx binary to your path, e.g. /usr/local/bin (incase you're running cx from the cloned repo)
+    4. copy the cx binary to your PATH, e.g. /usr/local/bin (incase you're running cx from the cloned repo)
         cp cx /usr/local/bin/
         chmod +x /usr/local/bin/cx
 
-    5. open a new terminal or re-source your ~/.bashrc / ~/.bash_profile
+    5. open a new terminal or re-source your ~/.bashrc or ~/.bash_profile
 \\0
 EOF
 
@@ -177,6 +188,13 @@ EOF
         msg_info "Already initialised"
     fi
 
+}
+
+get_settings_from_file() {
+    grep "^[[:alnum:]_-]* *=.*" "$CONFIG_FILE" \
+    | sed 's/#.*//g' \
+    | sed 's/ *= */=/g' \
+    | awk -F= '{print $1,$2}'
 }
 
 initialise_settings() {
@@ -195,7 +213,6 @@ initialise_settings() {
     # we'll set to some temporary variables and the final pass will export to real variables
 
     ALL_VARS=(
-        CX_CX_BIN_PATH
         CX_BIN_DIR
         CX_BIN_LINK
         CX_CONFIG_LINK
@@ -221,13 +238,7 @@ initialise_settings() {
 	while read -r k v; do
 		t="${TMP_VAR_PREFIX}CX_${k}"
 		eval "$t"="$v"
-	done <<<"$(\
-			grep "^[[:alnum:]_-]* *=.*" "$CONFIG_FILE" \
-			| sed 's/#.*//g' \
-			| sed 's/ *= */=/g' \
-			| awk -F= '{print $1,$2}'\
-			)"
-	set -u
+    done<<<"$(get_settings_from_file)"
 
 	# settings from environment variables
     # we just have to add our tmp prefix 
@@ -238,51 +249,54 @@ initialise_settings() {
 		fi
 	done
 
-    # settings from cli, the variables are simply lowercase versions without CX_ prefix
-    # e.g. --bin_link = CX_BIN_LINK
-    # since cli settings take precedence, shims will need to call $(cx get --<config>) to
-    # get the real value if they want to ovveride environment export value
-
-    # local ARGS
-    # ARGS=("$@")
-    # if [[ ! -z "${ARGS:-}" && "${#ARGS}" -gt 0 ]]; then
-    #     while (( "$#" )); do
-    #         t="${TMP_VAR_PREFIX}CX_$(_cli2var "$1")"
-    #         shift
-    #         if [ ! -z "${1:-}" ]; then
-    #             eval "$t"="$1"
-    #             shift
-    #         fi
-	# 	done
-    # fi
-
-	# msg_info "Current settings (after cli apply)"
-	# for l in "${LOCAL_VARS[@]}"; do
-	# 	echo "$l : ${!l}"
-	# done
-    # seems unnecessary atm!
-
     # overriding environment variables with final results, only useful internally 
     # and when scripts request a value via cx get --<cli setting>
     for i in "${ALL_VARS[@]}"; do
         t="${TMP_VAR_PREFIX}${i}"
         eval "$i"="${!t}"
     done
-
-	# msg_info "Current settings (after patching env vars)"
-	# for l in "${ALL_VARS[@]}"; do
-	# 	echo "$l : ${!l}"
-	# done
+	set -u
 
 }
 # end of initialise_settings
-
 
 validate_settings() {
     # Ensure directories are valid
     [ -d "${CX_SHIMS_DIR}" ] || msg_error "shims directory ${GREY}($CX_SHIMS_DIR)${NC} not found"
     [ -d "${CX_BIN_DIR}" ] || msg_error "bin directory ${GREY}($CX_BIN_DIR)${NC} not found"
+
+    # Display message if asked to validate explicitly - cx validate
+    if [ "$#" -gt 0 ]; then
+        msg_info "Config looks good!"
+    fi
 }
+
+get_settings_globally() {
+	for l in "${ALL_VARS[@]}"; do
+        echo "${l}: ${!l}" | sed 's/^CX_//g'
+	done
+    msg_warn "\\n\\tThese settings possibly include values overriden by environment variables and may\\n \\tdiffer from your config file - $CONFIG_FILE"
+}
+
+get_settings() {
+    local ARG="$1"
+
+    # validate | blank | edit
+    case "${ARG}" in
+        validate)
+            validate_settings msg
+            ;;
+        edit)
+            if [ ! -z "${EDITOR:-}" ]; then
+                "$EDITOR" "$CONFIG_FILE" || msg_error "Failed to open $CONFIG_FILE with $EDITOR"
+            fi
+            ;;
+        *)
+            get_settings_globally || msg_error "Failed to get cx settings"
+            ;;
+    esac
+}
+
 
 # cx --exports  # so scripts can access CX_* settings
 export_settings() {
@@ -296,7 +310,6 @@ $LINE\\0
 EOF
     done
     echo "$EXPORTED_SETTINGS"
-       
 }
 
 
@@ -331,6 +344,9 @@ cx_path_exclude() {
     export PATH="$TMPPATH"
 }
 
+# main trigger in shim script, should be the last step of the shim
+# handle piped and normal invocations
+# we exclude BIN_DIR from the path so we can call the real command!
 cx_bin_wrap() {
     local CMD
     CMD=("$@")
@@ -345,15 +361,14 @@ cx_bin_wrap() {
 # end of cx_* functions
 
 export_functions() {
-    # export CX_ settings
-# TODO:
-
     # export cx_ functions
     local CX_FUNCTIONS
     CX_FUNCTIONS="\
         cx_bin_wrap\
         cx_path_exclude\
         cx_msg_error\
+        cx_msg_info\
+        cx_msg_warn\
         cx_validate_tools\
         cx_source_config\
         cx_get_config"
@@ -379,7 +394,8 @@ _cx_completion()
     local CX_BASE_CMDS CX_IGNORE_DIRS CX_IGNORE_FILES CX_IGNORE
     CX_SHIMS_DIR=${CX_SHIMS_DIR:-"${HOME}/shims"}
     CX_BIN_DIR=${CX_BIN_DIR:-"${HOME}/.config/cx/bin"}
-    CX_BASE_CMDS=("get enable disable list init")
+    CX_BASE_CMDS=("get enable disable list init config")
+	CX_CONFIG_OPTIONS=("edit validate")
     CX_LIST_OPTIONS=("enabled disabled")
     CX_BIN_LINK="${CX_BIN_LINK:-run}"
     CX_CONFIG_LINK="${CX_CONFIG_LINK:-config}"
@@ -397,12 +413,15 @@ _cx_completion()
             COMPREPLY=($(compgen -W "${CX_BASE_CMDS[*]} $(cx list)" -- ${cur}))
             ;;
         2)
-            if [[ $prev == "list" ]]; then COMPREPLY=($(compgen -W "${CX_LIST_OPTIONS[*]} $(cx list)" -- ${cur}))
-            elif [[ $prev == "enable" ]]; then COMPREPLY=($(compgen -W "$(cx list disabled)" -- ${cur}))
-            elif [[ $prev == "disable" ]]; then COMPREPLY=($(compgen -W "$(cx list enabled)" -- ${cur}))
-            elif [[ "${CX_BASE_CMDS[*]}" =~ $prev ]]; then COMPREPLY=($(compgen -W "$(cx list)" -- ${cur}))
-            else COMPREPLY=($(compgen -W "$(ls -1 "${CX_SHIMS_DIR}/${prev}" | grep -vE "($CX_IGNORE)")" -- ${cur}))
-            fi
+            if [[ "${CX_BASE_CMDS[*]}" =~ $prev ]]; then COMPREPLY=($(compgen -W "$(cx list)" -- ${cur})); fi
+			case "$prev" in
+				list) COMPREPLY=($(compgen -W "${CX_LIST_OPTIONS[*]} $(cx list)" -- ${cur})) ;;
+				enable) COMPREPLY=($(compgen -W "$(cx list disabled)" -- ${cur}));;
+				disable) COMPREPLY=($(compgen -W "$(cx list enabled)" -- ${cur}));;
+				config) COMPREPLY=($(compgen -W "${CX_CONFIG_OPTIONS[*]}" -- ${cur}));;
+				*) COMPREPLY=($(compgen -W "$(ls -1 "${CX_SHIMS_DIR}/${prev}" | grep -vE "($CX_IGNORE)")" -- ${cur}));;
+
+			esac
             ;;
         *)
             COMPREPLY=()
@@ -496,7 +515,8 @@ get_shims() {
 get_configs() {
     local PROG CONFIGS
     PROG="$1"
-    CONFIGS=("$(find "$CX_SHIMS_DIR/${PROG}" -maxdepth 1 -type f -exec basename {} \; | grep -vE "($CX_BIN_LINK|$CX_COMMON_DIR)")")
+    CONFIGS=("$(find "$CX_SHIMS_DIR/${PROG}" -maxdepth 1 -type f -exec basename {} \; \
+        | grep -vE "($CX_BIN_LINK|$CX_COMMON_DIR)")")
     echo "${CONFIGS[@]}"
 }
 
@@ -511,8 +531,11 @@ switch_config() {
     PROG="${1:-}"
     CONFIG="${2:-}"
 
-    [ ! -e "${CX_SHIMS_DIR}/${PROG}/${CX_BIN_LINK}" ] && msg_error "program $PROG does not exist - ${GREY}try one of: [ $(get_shims | tr '\n' ' ')]"
-    [ -z "$CONFIG" ] && msg_error "please provide a config to switch to - ${GREY}try one of: [ $(get_configs "$PROG" | tr '\n' ' ')]"
+    [ ! -e "${CX_SHIMS_DIR}/${PROG}/${CX_BIN_LINK}" ] \
+        && msg_error "program ${GREY}$PROG${RED} does not exist - $(_msg_try_one program)"
+
+    [ -z "$CONFIG" ] && \
+        msg_error "please provide a config to switch to - $(_msg_try_one config "$PROG")"
 
     cd "${CX_SHIMS_DIR}/$PROG"
 
@@ -522,12 +545,19 @@ switch_config() {
         exit 0
     fi
 
-    [ ! -e "$CONFIG" ] && msg_error "config: $CONFIG does not exist - ${GREY}try one of : [ $(get_configs "$PROG" | tr '\n' ' ')]"
+    [ ! -e "$CONFIG" ] && \
+        msg_error "config: $CONFIG does not exist - $(_msg_try_one config "$PROG")"
+
+    [ "$(get_current_config "$PROG")" = "$CONFIG" ] \
+        && msg_info "$PROG context already set to $CONFIG!" && \
+        exit
 
     # delete current config and recreate symlink
-    [ -e config ] && rm -f config
+    if [ -h config ]; then
+        rm -f config || msg_error "Failed to remove config for $PROG (before applying new config)"
+    fi
     ln -snf "$CONFIG" config
-    msg_info "Config for $PROG set to: $CONFIG"
+    msg_info "$PROG context: $CONFIG"
     post_cx
 }
 
@@ -555,6 +585,7 @@ case "${1:-}" in
         fi
         ;;
     get) get_current_config "${2:-}"; exit 0; ;;
+    config) get_settings "${2:-}"; exit 0; ;;
     init) initialise_cx_home; exit 0; ;;
     list) 
         if [[ "${2:-}" == "enabled" || "${2:-}" == "disabled" || "${2:-}" == "" ]]; then
