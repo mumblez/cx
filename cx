@@ -135,7 +135,7 @@ BIN_LINK=run
 # symlink name to use when set context with 'cx <program> <config>'
 CONFIG_LINK=config
 
-# your shim  and configs, (ideally version controlled on a private
+# your shims directory and configs, (ideally version controlled on a private
 # git repository, like keybase or gitlab)
 SHIMS_DIR=/tmp/cx # you should change this or override in your ~/.bashrc
 
@@ -265,7 +265,7 @@ validate_settings() {
     [ -d "${CX_SHIMS_DIR}" ] || msg_error "shims directory ${GREY}($CX_SHIMS_DIR)${NC} not found"
     [ -d "${CX_BIN_DIR}" ] || msg_error "bin directory ${GREY}($CX_BIN_DIR)${NC} not found"
 
-    # Display message if asked to validate explicitly - cx validate
+    # Display message if asked to validate explicitly - cx config validate
     if [ "$#" -gt 0 ]; then
         msg_info "Config looks good!"
     fi
