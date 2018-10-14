@@ -111,17 +111,19 @@ initialise_cx_home() {
     fi
 
     read -r -d'\0' DEFAULT_CONFIG <<'EOF'
-# cx settings file, these are your base settings!
-# you can override these values by exporting them in your ~/.bashrc / ~/.bash_profile
+# Base settings
+# you can override these values by exporting them in your environment
 # by prefixing the value with CX_, e.g. for SHIMS_DIR = CX_SHIMS_DIR
+# exported environment variables take precedence over values set in this file!
 
 
 # contains symlinks to your shims, ensure this exists early on in your PATH
 # check it's the last step in your ~/.bashrc / ~/bash_profile 
-#'export PATH="${CX_BIN_DIR}:${PATH}"'
+#'export PATH="<your BIN_DIR directory>:${PATH}"'
 BIN_DIR="${HOME}/.config/cx/bin"
 
 # Example File layout of your shims directory
+# -------------------------------------------
 # my-shims/                 <-- (SHIMS_DIR)
 # ├─ common/               	<-- (COMMON_DIR)
 # └─ mysql/					<-- command name, must match a command already in your PATH
@@ -132,12 +134,12 @@ BIN_DIR="${HOME}/.config/cx/bin"
 # script file within your shims directory to symlink to in BIN_DIR
 BIN_LINK=run
 
-# symlink name to use when set context with 'cx <program> <config>'
+# symlink name to use when setting context with 'cx <program> <config>'
 CONFIG_LINK=config
 
 # your shims directory and configs, (ideally version controlled on a private
 # git repository, like keybase or gitlab)
-SHIMS_DIR=/tmp/cx # you should change this or override in your ~/.bashrc
+SHIMS_DIR=/tmp/cx
 
 # common directory containing includes you can reuse in your shim scripts, by default
 # we'll look for "common" within the shims directory but you can override this if you 
@@ -249,8 +251,7 @@ initialise_settings() {
 		fi
 	done
 
-    # overriding environment variables with final results, only useful internally 
-    # and when scripts request a value via cx get --<cli setting>
+    # overriding environment variables with final results
     for i in "${ALL_VARS[@]}"; do
         t="${TMP_VAR_PREFIX}${i}"
         eval "$i"="${!t}"
@@ -279,10 +280,8 @@ get_settings_globally() {
 }
 
 get_settings() {
-    local ARG="$1"
-
     # validate | blank | edit
-    case "${ARG}" in
+    case "${1}" in
         validate)
             validate_settings msg
             ;;
@@ -367,8 +366,6 @@ export_functions() {
         cx_bin_wrap\
         cx_path_exclude\
         cx_msg_error\
-        cx_msg_info\
-        cx_msg_warn\
         cx_validate_tools\
         cx_source_config\
         cx_get_config"
