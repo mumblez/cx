@@ -52,6 +52,8 @@ SUBCOMMANDS
     list [enabled|disabled]         - lists your programs
     get <program>                   - show the current config for your program
 
+    get --[bin_link|bin_dir|common_dir|config_link|shims_dir|tmux_refresh|..<a cx setting>]
+
     Manage cx configuration
     -----------------------
     init                            - setup initial config and directories
@@ -468,14 +470,18 @@ toggle_shims() {
 }
 
 
+# return values for integration with external tools, e.t. tmux
 get_current_config() {
     # if starts -- then get internal config
-    # TODO
     if [[ "$1" =~ "--" ]]; then
-        t="CX_$(echo $1 | sed 's/--//g' | tr '[:lower:]' '[:upper:]')" 
-        set +u
-        echo "${!t}"
-        set -u
+        t="CX_$(echo "$1" | sed 's/--//g' | tr '[:lower:]' '[:upper:]')" 
+        if [[ "${ALL_VARS[*]}" =~ $t ]]; then
+            set +u
+            echo "${!t}"
+            set -u
+        else
+            msg_error "Setting $1 does not exist"
+        fi
         return
     fi
 
