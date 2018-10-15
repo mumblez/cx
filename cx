@@ -133,6 +133,8 @@ BIN_DIR="${HOME}/.config/cx/bin"
 # -------------------------------------------
 # my-shims/                 <-- (SHIMS_DIR)
 # ├─ common/               	<-- (COMMON_DIR)
+# │  └── mysql
+# │      └── init           <-- common values you'd like to source in your shim
 # └─ mysql/					<-- command name, must match a command already in your PATH
 #    ├── run                <-- (BIN_LINK) name of script, gets symlinked in BIN_DIR
 #    ├── staging			<-- a real configuration containing settings to be sourced in your 'run' script
@@ -365,6 +367,7 @@ cx_bin_wrap() {
         "${CMD[@]}"
     fi
 }
+
 
 # end of cx_* functions
 
