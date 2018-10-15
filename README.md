@@ -69,20 +69,22 @@ You're file layout may look like so:
 ```text
 my-shims
 ├── common                      <--- common includes (can configure with $CX_COMMON_DIR)
+│   └── mysql
+│       └── init                <--- common values automatically sourced in as part of cx --init (after config)
 │   ├── csp
 │   └── trap-handler
 ├── mysql
 │   ├── config -> sandbox       <--- current config
 │   ├── production
-│   ├── run                     <--- current script / shim
 │   ├── sandbox
 │   ├── scratch
-│   └── staging
-├── psql
-│   ├── analytics
-│   ├── config -> operations    <--- current config
-│   ├── operations
+│   ├── staging
 │   └── run                     <--- current script / shim
+└── psql
+    ├── config -> staging       <--- current config
+    ├── production
+    ├── staging
+    └── run                     <--- current script / shim
 
 ```
 
@@ -133,26 +135,17 @@ vim run
 set -euo pipefail
 
 # Bring in common functions and config
-. <(cx --init)
+. <(cx --init) # sources current config and common init (if exists)
 . "${CX_COMMON_DIR}/trap-handler"
 . "${CX_COMMON_DIR}/csp"
 
 # Validate we have the tools
 cx_validate_tools gopass cloud_sql_proxy psql grep
 
-# Settings
-GP_CMD=(gopass show -o "$GP_ENTRY")
-CSP_INSTANCE=$("${GP_CMD[@]}" csp)
-PGPASSWORD=$("${GP_CMD[@]}")
-PGUSER=$("${GP_CMD[@]}" user)
-SOCKET_DIR=$(mktemp -d /tmp/csps-XXX)
-PGHOST="${SOCKET_DIR}/${CSP_INSTANCE}"
-
 # Start cloud_sql_proxy and wait for it to be ready
 csp_start "$CSP_INSTANCE" "$SOCKET_DIR"
 
-# Export connection info and launch psql
-export PGUSER PGHOST PGPASSWORD
+# launch psql
 psql -w "$@"
 
 ```
@@ -166,3 +159,7 @@ psql # <- calls your shim script, which sets up values and runs 'cx_bin_wrap psq
 cx psql production
 psql # now you're using the production config!
 ```
+
+# Recommendations
+- [keybase](https://keybase.io) - securely host git repos (like your shims) and setup your pgp / gpg keys
+- [gopass](https://www.gopass.pw/) - git version control and gpg encrypt your passwords and access them programmatically
