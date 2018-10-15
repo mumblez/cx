@@ -155,7 +155,7 @@ to use your shim:
 ```sh
 cx enable psql
 cx psql staging
-psql # <- calls your shim script, which sets up values and runs 'cx_bin_wrap psql [args...]'
+psql # <- calls your shim script, which sets up values and runs the real psql in your PATH (bypassing the shim)
 cx psql production
 psql # now you're using the production config!
 ```
