@@ -99,6 +99,7 @@ EXPORTS
 
     Note, when you '. <(cx --init)' in your shim, we will run:
     cx_source_config
+    # source in $CX_COMMON_DIR/config/<shim>/init if it exists
     cx_path_exclude
     ...
 
@@ -134,11 +135,11 @@ BIN_DIR="${HOME}/.config/cx/bin"
 # my-shims/                 <-- (SHIMS_DIR)
 # ├─ common/               	<-- (COMMON_DIR)
 # │  └── mysql
-# │      └── init           <-- common values you'd like to source in your shim
+# │      └── init           <-- common values automatically sourced in as part of cx --init (after config)
 # └─ mysql/					<-- command name, must match a command already in your PATH
 #    ├── run                <-- (BIN_LINK) name of script, gets symlinked in BIN_DIR
 #    ├── staging			<-- a real configuration containing settings to be sourced in your 'run' script
-#    └── config -> staging  <-- (CONFIG_LINK) this is what gets sourced in when using '. $(cx --init)' in your script
+#    └── config -> staging  <-- (CONFIG_LINK) this is what gets sourced in when using '. <(cx --init)' 
 
 # script file within your shims directory to symlink to in BIN_DIR
 BIN_LINK=run
@@ -323,7 +324,7 @@ EOF
 
 ## cx functions - to be exported for user scripts
 cx_get_config() {
-    local RP DIR PROG
+    local RP DIR
     RP=$(realpath "$(command -v "$0")")
     DIR=$(cd "$(dirname "$RP")" && pwd)
     echo "${DIR}/${CX_CONFIG_LINK}" # Ensure we export settings first!
@@ -373,7 +374,7 @@ cx_bin_wrap() {
 
 export_functions() {
     # export cx_ functions
-    local CX_FUNCTIONS
+    local CX_FUNCTIONS SHIM_COMMON_INIT
     CX_FUNCTIONS="\
         cx_bin_wrap\
         cx_path_exclude\
@@ -386,11 +387,20 @@ export_functions() {
         declare -f "$f"
     done
 
+    read -r -d'\0' SHIM_COMMON_INIT <<'EOF'
+    _CX_COMMON_SHIM_INIT="${CX_COMMON_DIR}/config/$(basename "$0")/init"
+    if [ -e "${_CX_COMMON_SHIM_INIT}" ]; then
+        . "${_CX_COMMON_SHIM_INIT}" 
+    fi
+    \0
+EOF
+
     # trigger functions after import
     # no longer needs cx_bin_wrap if we PATH exclude during init
     # but if we need / want to have shims call other shims
     # then we should go back to using cx_bin_wrap
     echo "cx_source_config"
+    echo "$SHIM_COMMON_INIT"
     echo "cx_path_exclude"
 
     exit 0
