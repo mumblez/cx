@@ -78,18 +78,28 @@ EXPORTS
 
     .bashrc / .bash_profile
     -----------------------
-    . <(cx --config)                - sources your $HOME/.config/cx/cxrc (important exports!)
     . <(cx --autocomplete)          - sets up bash autocomplete, put this in your bashrc / bash_profile
 
     program (aka shim script)
     -------------------------
     . <(cx --init)                  - brings in common cx settings, functions and sources your config, 
-                                      you'll need this to: cx_bin_wrap <program> [<args>]
+                                      excludes cx bin dir so can then call the real command!
 
     functions (after source <(cx --init))
     -------------------------------------
-    cx_bin_wrap       - runs the real command with your config, takes care of handling piped input and args
-    cx_validate_tools - given a space separated list of commands will verify they are available
+
+    (all optional)
+
+    cx_bin_wrap         - runs the real command with your config, takes care of handling piped input and args
+    cx_validate_tools   - given a space separated list of commands will verify they are available
+    cx_path_exclude     - explicitly exclude cx bin dir
+    cx_msg_error        - echo's message (all args) and exit 1
+    cx_source_config    - sources your shims current config
+    cx_get_config       - gets the name of your current config
+
+    Note, when you '. <(cx --init)' in your shim, we will run:
+    cx_source_config
+    cx_path_exclude
     ...
 
 
@@ -373,7 +383,11 @@ export_functions() {
     done
 
     # trigger functions after import
+    # no longer needs cx_bin_wrap if we PATH exclude during init
+    # but if we need / want to have shims call other shims
+    # then we should go back to using cx_bin_wrap
     echo "cx_source_config"
+    echo "cx_path_exclude"
 
     exit 0
 }

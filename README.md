@@ -36,12 +36,10 @@ the directory name will be used as your program name and will be accessible with
     - Pulling sensitive info out of [go]pass (if you don't want to put it in your configs clear text)
     - Setting config variables, e.g. host, username, password, project, instance....
     - Export the variables before calling the real program, e.g. 'mysql'
-    - prefix your final command with `cx_bin_wrap`, e.g. `cx_bin_wrap mysql --defaults-file=<(echo $CONFIG)`
-        - our `cx_bin_wrap` will amend `PATH` just before execution so that the real command is 
-            executed (later in your `PATH`)
-        - detect how the command is invoked and handle appropriately, e.g.:
-            - `echo "use somedb; select * from sometable;" | mysql` # Piped content
-            - `mysql -v`                                            # just regular invocation
+    - include '. <(cx --init)', takes care of:
+        - sourcing your current config
+        - amending PATH to exclude cx bin dir (so your real command is now longer shadowed)
+    - run your command as you normally would, e.g. 'mysql <args>...'
 
 
 3. create your various configurations, e.g. for different environments, instances, projects, dbs, etc..
@@ -60,9 +58,10 @@ e.g. if your shim program is named `mysql` and you have a
 configuration named `staging` you'd changed to that config like so:
 
 ```sh
-cx mysql staging # use staging config
-cx mysql clear   # clear config, 
-cx disable mysql # use normal 'mysql' in your PATH (bypassing shim)
+cx mysql staging    # use staging config
+cx mysql production # or a different config
+cx mysql clear      # clear config (deletes the symlink to the config), 
+cx disable mysql    # use normal 'mysql' in your PATH (bypassing shim)
 ```
 
 You're file layout may look like so:
@@ -88,18 +87,9 @@ my-shims
 ```
 
 the config symlink gets created when you `cx mysql staging`, this is what you `source` in
-your `run` script, but use the `cx_get_config` function so it can return the real path!
+your `run` script, (cx --init takes care of that!)
 
 ## TODO: document
-- environment variables
-    - CX_BIN_DIR
-    - CX_SHIMS_DIR
-    - CX_COMMON_DIR
-    - CX_COMMON_LIB
-    - CX_BIN_LINK
-    - CX_CONFIG_LINK
-- bash auto complete
-- common functions in lib
 - asciinema demo
 - tmux status line
 
@@ -163,7 +153,7 @@ csp_start "$CSP_INSTANCE" "$SOCKET_DIR"
 
 # Export connection info and launch psql
 export PGUSER PGHOST PGPASSWORD
-cx_bin_wrap psql -w "$@"
+psql -w "$@"
 
 ```
 
@@ -173,4 +163,6 @@ to use your shim:
 cx enable psql
 cx psql staging
 psql # <- calls your shim script, which sets up values and runs 'cx_bin_wrap psql [args...]'
+cx psql production
+psql # now you're using the production config!
 ```
