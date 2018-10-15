@@ -349,6 +349,7 @@ cx_path_exclude() {
     local  TMPPATH
     TMPPATH="$(echo -e "${PATH//:/\\n}" | grep -v "$CX_BIN_DIR" | tr '\n' ':')"
     export PATH="$TMPPATH"
+    hash -r
 }
 
 # main trigger in shim script, should be the last step of the shim
@@ -463,6 +464,7 @@ bin_link() {
         if [ "${ACTION}" = "create" ]; then
             ln -snf "$REAL_PATH" "$LINK_PATH"
         fi
+        hash -r
     else
         msg_error "program $PROG not found"
     fi
