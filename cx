@@ -516,7 +516,7 @@ get_current_config() {
 get_shims() {
     local DIRS LINKS DIFF
     # All
-    DIRS=("$(find "$CX_SHIMS_DIR"/* -maxdepth 1 -type d -exec basename {} \; | grep -v "$(basename "$CX_COMMON_DIR")" | sort)")
+    DIRS=("$(find "$CX_SHIMS_DIR"/* -maxdepth 0 -type d -exec basename {} \; | grep -v "$(basename "$CX_COMMON_DIR")" | sort)")
     # Enabled
     # errors if empty when using /*
     LINKS=("$(find "$CX_BIN_DIR" -maxdepth 1 -type l -exec basename {} \; | sort)")
