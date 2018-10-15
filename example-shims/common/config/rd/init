@@ -1,0 +1,5 @@
+GP_CMD=(gopass show -o "$GP_ENTRY")
+RD_URL=$("${GP_CMD[@]}" url)
+RD_TOKEN=$("${GP_CMD[@]}")
+RD_COLOR=0
+export RD_URL RD_TOKEN RD_PROJECT RD_COLOR

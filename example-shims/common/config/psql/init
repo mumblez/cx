@@ -1,0 +1,8 @@
+GP_CMD=(gopass show -o "$GP_ENTRY")
+CSP_INSTANCE=$("${GP_CMD[@]}" csp)
+PGPASSWORD=$("${GP_CMD[@]}")
+PGUSER=$("${GP_CMD[@]}" user)
+SOCKET_DIR=$(mktemp -d /tmp/csps-XXX)
+PGHOST="${SOCKET_DIR}/${CSP_INSTANCE}"
+
+export PGUSER PGHOST PGPASSWORD

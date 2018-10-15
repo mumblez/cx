@@ -1,0 +1,29 @@
+# Handle starting google cloud_sql_proxy with specific instance
+# and socket directory, will block until it's ready to accept connections
+
+csp_start() {
+    local SOCKET_DIR CSP_LOG CSP_INSTANCE CSP_PID
+    CSP_INSTANCE="$1"
+    SOCKET_DIR="$2"
+    CSP_LOG=$(mktemp /tmp/csp-XXX)
+
+    cloud_sql_proxy -dir "$SOCKET_DIR" -instances "$CSP_INSTANCE" &>"$CSP_LOG" & # socket connection
+    CSP_PID=$!
+
+
+    # if trap-handler sourced in, we add some commands to the handler
+    if [ ! -z "${TRAP_HANDLER:-}" ]; then
+        # we want to expand the variables now instead of in the trap!
+        trap_add_cmd "[ ! -z \"${CSP_PID:-}\" ] && kill \"$CSP_PID\""
+        trap_add_cmd "[ ! -z \"${CSP_LOG:-}\" ] && rm -f \"$CSP_LOG\""
+        trap_add_cmd "[ ! -z \"${SOCKET_DIR:-}\" ] && rm -rf \"$SOCKET_DIR\""
+    fi
+
+    # # Check csp log to make sure it's ready before we connect!
+    echo -n "==> Waiting for cloud sql proxy to accept connections."
+    while ! grep -qs "Ready for new connections" "$CSP_LOG"; do
+        sleep 1
+        echo -n "."
+    done
+    echo
+}

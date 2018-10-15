@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1090
+
+# psql
+
+set -euo pipefail
+
+# Bring in common functions and config
+. <(cx --init)
+. "${CX_COMMON_DIR}/trap-handler"
+. "${CX_COMMON_DIR}/csp"
+
+# Validate we have the tools
+cx_validate_tools gopass cloud_sql_proxy psql grep
+
+# Start cloud_sql_proxy and wait for it to be ready
+csp_start "$CSP_INSTANCE" "$SOCKET_DIR"
+
+# our config will already export connection info
+psql -w "$@"

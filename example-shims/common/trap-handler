@@ -1,0 +1,18 @@
+# handle traps throughout a script without having
+# to define it all at once at the beginning, add commands to the trap
+# handler when it makes sense to
+
+TRAP_CMDS=()
+TRAP_SIGNALS=(EXIT SIGINT SIGQUIT SIGTERM)
+TRAP_HANDLER=1
+
+trap_handler() {
+    for f in "${TRAP_CMDS[@]}"; do
+        eval "${f}"
+    done
+}
+trap 'trap_handler' "${TRAP_SIGNALS[@]}"
+
+trap_add_cmd() {
+    TRAP_CMDS+=("$@")
+}

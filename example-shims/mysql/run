@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1090
+
+# mysql
+
+set -euo pipefail
+
+. <(cx --init)
+. "${CX_COMMON_DIR}/trap-handler"
+. "${CX_COMMON_DIR}/csp"
+
+# Validate and exit if tools don't exist
+cx_validate_tools gopass cloud_sql_proxy mysql grep
+
+# Start and wait for CSP
+csp_start "$CSP_INSTANCE" "$SOCKET_DIR"
+
+mysql --defaults-file=<(echo "$CON") "$@"

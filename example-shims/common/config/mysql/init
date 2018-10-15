@@ -1,0 +1,13 @@
+GP_CMD=(gopass show -o "$GPENTRY")
+CSP_INSTANCE="$("${GP_CMD[@]}" project):$("${GP_CMD[@]}" region):$("${GP_CMD[@]}" instance)"
+SOCKET_DIR=$(mktemp -d /tmp/csps-XXX)
+MUSER="$("${GP_CMD[@]}" user)"
+MPASS="$("${GP_CMD[@]}")"
+
+read -r -d '\0' CON <<EOF
+[client]
+user="$MUSER"
+password="$MPASS"
+socket="${SOCKET_DIR}/${CSP_INSTANCE}"
+\0
+EOF
