@@ -441,7 +441,7 @@ _cx_completion()
     esac
 }
 
-# to be sourced in - . $(cx --autocomplete)
+# to be sourced in - . <(cx --autocomplete)
 export_autocomplete() {
     declare -f _cx_completion
     echo 'complete -F _cx_completion cx'
