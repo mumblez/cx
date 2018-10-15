@@ -1,0 +1,3 @@
+GPENTRY="github-pat/homebrew/work"
+HOMEBREW_GITHUB_API_TOKEN="$(gopass show -o "$GPENTRY")"
+export HOMEBREW_GITHUB_API_TOKEN
