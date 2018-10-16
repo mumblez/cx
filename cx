@@ -99,7 +99,7 @@ EXPORTS
 
     Note, when you '. <(cx --init)' in your shim, we will run:
     cx_source_config
-    # source in $CX_COMMON_DIR/config/<shim>/init if it exists
+    # source in $CX_COMMON_DIR/configs/<shim>/init if it exists
     cx_path_exclude
     ...
 
@@ -388,7 +388,7 @@ export_functions() {
     done
 
     read -r -d'\0' SHIM_COMMON_INIT <<'EOF'
-    _CX_COMMON_SHIM_INIT="${CX_COMMON_DIR}/config/$(basename "$0")/init"
+    _CX_COMMON_SHIM_INIT="${CX_COMMON_DIR}/configs/$(basename "$0")/init"
     if [ -e "${_CX_COMMON_SHIM_INIT}" ]; then
         . "${_CX_COMMON_SHIM_INIT}" 
     fi
