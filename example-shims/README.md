@@ -9,13 +9,13 @@ Some example configs just have plain text values, in configuring for yourself yo
 to query / pull these values out from a password manager or some cli process to query / decrypt values.
 
 e.g. for strings / values
+```sh
 SOME_TOKEN="$(pass path/to/some/token)"
+```
 
 e.g. for file contents:
 
 ```sh
-
-
 read -r -d'\0' CRED_FILE <<EOF
 $(gopass bin cat path/to/some/file/contents)
 \0
@@ -24,7 +24,6 @@ EOF
 # info and pass this as `mysql --defaults-file=<(echo "$CON")`
 
 my-cmd -credentials_file <(echo "$CRED_FILE")
-
 ```
 
 Another way to pass file contents is to use bash builtin `mapfile` (but you lose compatibility with bash 3.2 on macs)
