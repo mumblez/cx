@@ -17,6 +17,7 @@ quick an easy!
   <img width="800" src="https://github.com/mumblez/cx/blob/master/assets/demo.svg">
 </p>
 
+[Better framerate demo](https://asciinema.org/a/YsY07cLqQ5kBzf37tZYRr7uj8)
 
 This is further secured / enhanced if you derive your values from a cli password manager
 such as pass or gopass, then you can safely version control your shims!
