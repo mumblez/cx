@@ -1,0 +1,4 @@
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/json/ # authenticated with 'gcloud auth application default login'
+GOOGLE_PROJECT=my-project-id
+GOOGLE_REGION=region
+GOOGLE_ZONE=dc

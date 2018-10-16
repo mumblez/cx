@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1090
 
 # rundeck-cli 
 
 set -euo pipefail
 
+# shellcheck disable=SC1090
 . <(cx --init)
 
 rd "$@"
