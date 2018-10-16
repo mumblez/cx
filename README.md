@@ -93,8 +93,6 @@ your `run` script, (cx --init takes care of that!)
 
 ## TODO: document
 - asciinema demo
-- tmux status line
-
 
 ## How to clear your programs config
 
@@ -163,3 +161,16 @@ psql # now you're using the production config!
 # Recommendations
 - [keybase](https://keybase.io) - securely host git repos (like your shims) and setup your pgp / gpg keys
 - [gopass](https://www.gopass.pw/) - git version control and gpg encrypt your passwords and access them programmatically
+
+## Adding context information to your tmux status line
+in your .tmux.conf, for your `status-right` value, you can insert commands using the #(shell cmd) syntax e.g.
+
+(showing the context value (current config) for mysql, rd and psql)
+```text
+RD:#(cx get rd) MYSQL:#(cx get mysql) PSQL:#(cx get psql)
+```
+optionally set the colour before and after, e.g.
+```text
+#[fg=colour48,bg=colour238]#(cx get mysql)#[fg=colour255,bg=colour238]
+```
+
