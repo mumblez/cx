@@ -167,20 +167,20 @@ contains:
 - `cxrc` - default settings, can be overriden with environment variables.
 
 Follow the instructions, the last remaining steps are to :
-- copy cx to somewhere in your `PATH`, e.g. `/usr/local/bin`
+- copy `cx` to somewhere in your `PATH`, e.g. `/usr/local/bin`
 - source in autocomplete in your shells rc - `. <(cx --autocomplete)`
-- prefix your `PATH` with your `~/.config/cx/bin`, this should be first in your `PATH` as intentionally want to shadow real commands further down in your `PATH`, you may already have `PATH` modifications in your .bashrc / .bash_profile, try to add this step at the end!
+- prefix your `PATH` with your `~/.config/cx/bin`, this should be first in your `PATH` as we intentionally want to shadow real commands which are further down in your `PATH`, you may already have `PATH` modifications in your .bashrc / .bash_profile, try to add this step at the end!
 - override your shims directory, either set `shims_dir` in ~/.config/cx/cxrc or export in your shells rc, e.g. - `export CX_SHIMS_DIR=~/repos/my-shims`
-- override your common directory if you want it separate to a subdirectory of your shims dir, either set `common_dir` in ~/.config/cx/cxrc or export in your shells rc, e.g. - `export CX_COMMON_DIR=~/repos/shims-common-includes`
+- override your common directory if you want it separate to a subdirectory of your shims dir, either set `common_dir` in ~/.config/cx/cxrc or export in your shells rc, e.g. - `export CX_COMMON_DIR=~/repos/my-shims-common`
 
 
 # How it works
 
-Because we ensure cx's bin_dir is first in your PATH we intercept the command with our shim.
+Because we ensure cx's bin_dir is first in your `PATH` we intercept the command with our shim.
 
 In our shim script we initialise with `. <(cx --init)` which does the following:
 - sources your shim's current context / config
-- sources your shim's common config if it exists - `$CX_COMMON_DIR/config/<shim>/init`
+- sources your shim's common config/include if it exists - `$CX_COMMON_DIR/config/<shim>/init`
 - amends `PATH` to exclude cx's bin_dir
 - the rest of the shim is logic unique to the command you want to run
 
@@ -195,8 +195,8 @@ in your `.tmux.conf`, for your `status-right` value, you can insert commands usi
 ```text
 RD:#(cx get rd) MYSQL:#(cx get mysql) PSQL:#(cx get psql)
 ```
-optionally set the colour before and after, e.g.
+optionally set the colours, e.g.
 ```text
-#[fg=colour48,bg=colour238]#(cx get mysql)#[fg=colour255,bg=colour238]
+#[fg=colour48,bg=colour238]#(cx get mysql)
 ```
 
