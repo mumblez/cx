@@ -13,7 +13,10 @@ The other goal is to make switching configs quick and easy, if your managing man
 or generally using a common tool with different profiles / settings, this can make switching
 quick an easy!
 
-TODO: asciidemo, psql, mysql, rd, tmux status line....
+<p align="center">
+  <img width="800" src="https://github.com/mumblez/cx/blob/master/assets/demo.svg">
+</p>
+
 
 This is further secured / enhanced if you derive your values from a cli password manager
 such as pass or gopass, then you can safely version control your shims!
