@@ -3,4 +3,4 @@
 # shellcheck disable=SC1090
 . <(cx --init)
 
-brew "$@"
+ansible "$@"
