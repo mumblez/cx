@@ -13,7 +13,7 @@ The other goal is to make switching configs quick and easy, if your managing man
 or generally using a common tool with different profiles / settings, this can make switching
 quick an easy!
 
-[![asciicast](https://asciinema.org/a/YsY07cLqQ5kBzf37tZYRr7uj8.png)](https://asciinema.org/a/YsY07cLqQ5kBzf37tZYRr7uj8)
+[![asciicast](https://asciinema.org/a/u9VXl6bkamjB0vSnVC1zpPtYx.png)](https://asciinema.org/a/u9VXl6bkamjB0vSnVC1zpPtYx)
 
 This is further secured / enhanced if you derive your values from a cli password manager
 such as pass or gopass, then you can safely version control your shims!
