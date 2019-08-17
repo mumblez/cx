@@ -11,7 +11,7 @@ exit those variables will no longer be available in your environment.
 
 The other goal is to make switching configs quick and easy, if your managing many servers, environments,
 or generally using a common tool with different profiles / settings, this can make switching
-quick an easy!
+quick an easy!!
 
 [![asciicast](https://asciinema.org/a/u9VXl6bkamjB0vSnVC1zpPtYx.png)](https://asciinema.org/a/u9VXl6bkamjB0vSnVC1zpPtYx)
 
