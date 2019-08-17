@@ -159,7 +159,7 @@ psql # now you're using the production config!
 # Install / Configuration
 
 ```sh
-cx init
+./cx init
 ```
 The above command sets up a base config directory at `~/.config/cx`
 contains:
